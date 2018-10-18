@@ -1,5 +1,6 @@
 #include "app.h"
 #include "common.h"
+#include "err.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -123,7 +124,6 @@ main(int argc, char ** argv)
 
   for (size_t i = 0; i < PORT_COUNT; ++i) {
     ports[i] = jack_port_register(client, names[i], JACK_DEFAULT_AUDIO_TYPE, flags[i], 0);
-
     if (!ports[i]) {
       fprintf(stderr, "Failed to register port '%s'. Bailing out\n", names[i]);
       goto exit;
@@ -131,7 +131,7 @@ main(int argc, char ** argv)
   }
 
   /* Setup the audio processing app */
-  app = create_app(&ret);
+  app = create_app(sample_rate, &ret);
   if (!app) {
     fprintf(stderr, "failed to create app with '%s'\n", app_errstr(ret));
     goto exit;
@@ -154,6 +154,7 @@ main(int argc, char ** argv)
 
   atomic_store(&running, true);
   struct sigaction act[1];
+  memset(act, 0, sizeof(*act));
   act->sa_handler = handle_signal;
   if (0 != sigaction(SIGINT, act, NULL)) {
     fprintf(stderr, "failed to setup signal handlers with: '%s' (%d)\n", strerror(errno), errno);
@@ -175,10 +176,7 @@ main(int argc, char ** argv)
     char const* in  = flags[i] & JackPortIsOutput ? connect_port_names[i]    : jack_port_name(ports[i]);
 
     ret = jack_connect(client, out, in);
-    if (ret != 0) {
-      fprintf(stderr, "Failed to connect port '%s' to '%s'. Bailing out\n", out, in);
-      goto exit;
-    }
+    if (ret != 0) fprintf(stderr, "Failed to connect port '%s' to '%s'. Moving along\n", out, in);
   }
 
   /* Wait for something to shut us down */
@@ -211,3 +209,9 @@ exit:
   /* app can be torn down last since it has no idea about anything jack related */
   if (app) destroy_app(app);
 }
+
+/* Other interesting jack APIS:
+   - jack CPU load estimation might be interesting to poll periodically
+   - some info/error reporting callbacks may be defined as well, perhaps we can
+     queue the logging and report in the main loop?
+*/

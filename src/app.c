@@ -1,4 +1,12 @@
+#include "additive_square.h"
 #include "app.h"
+#include "err.h"
+
+/* Should this be statically sized? */
+
+struct app {
+  additive_square_t* sq; /* pointer into the trailing data */
+};
 
 char const*
 app_errstr(int err)
@@ -12,9 +20,27 @@ app_errstr(int err)
 }
 
 app_t*
-create_app(int* opt_err)
+create_app(size_t sample_rate_hz,
+           int*   opt_err)
 {
-  if (opt_err) *opt_err = APP_ERR_ALLOC;
+  size_t footprint = 0;
+  footprint += additive_square_footprint();
+
+  size_t tsize = footprint + sizeof(app_t);
+  app_t* ret = calloc(tsize, 1);
+  if (!ret) {
+    if (opt_err) *opt_err = APP_ERR_ALLOC;
+    goto exit;
+  }
+
+  char* ptr = (char*)ret + sizeof(ret);
+  ret->sq = create_additive_square(ptr, sample_rate_hz, opt_err);
+  if (!ret->sq) goto exit; /* opt_err already set */
+
+  return ret;
+
+exit:
+  if (ret) free(ret);
   return NULL;
 }
 
@@ -25,18 +51,18 @@ destroy_app(app_t* app)
 }
 
 int
-app_poll(app_t*       app,
-         size_t       nframes,
-         float*       square_wave_out,
-         float*       exciter_out,
-         float const* lxd_signal_in)
+app_poll(app_t*                app,
+         size_t                nframes,
+         float* restrict       square_wave_out,
+         float* restrict       exciter_out,
+         float const* restrict lxd_signal_in)
 {
-  (void)app;
-  (void)nframes;
-  (void)square_wave_out;
   (void)exciter_out;
   (void)lxd_signal_in;
-  return APP_ERR_UNIMPL;
+
+  additive_square_generate_samples(app->sq, nframes, 440.0, square_wave_out);
+
+  return APP_SUCCESS;
 }
 
 /* need to generate an extremely accurate square wave */
