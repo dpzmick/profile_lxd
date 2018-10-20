@@ -57,7 +57,7 @@ additive_square_generate_samples(additive_square_t* square,
       out_buffer[i] += sin(2*M_PI*harmonic*t) / (float)harmonic;
     }
     out_buffer[i] *= 4. / M_PI;
-    t += frequency / (nyq*2.);
+    t += frequency / (nyq*2.) /* sample rate */;
     if (t >= 1.0) t = 0;
   }
 
