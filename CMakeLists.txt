@@ -4,6 +4,7 @@ project(profile_lxd)
 # get some system info, probably breaks in some places
 # not sure this is really any better than using make (is scons better?)
 execute_process(COMMAND getconf LEVEL1_DCACHE_LINESIZE OUTPUT_VARIABLE CACHELINE)
+string(STRIP ${CACHELINE} CACHELINE)
 
 # compiler flags
 set(CMAKE_C_STANDARD 11)
@@ -19,3 +20,6 @@ add_executable(profile_lxd src/main.c src/app.c src/additive_square.c)
 set_property(TARGET profile_lxd PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 target_link_libraries(profile_lxd m)
 target_link_libraries(profile_lxd jack)
+
+# create an so for testing in python
+add_library(lxd SHARED src/additive_square.c)

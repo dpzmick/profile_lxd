@@ -53,12 +53,13 @@ additive_square_generate_samples(additive_square_t* square,
 
   memset(out_buffer, 0, n_frames*sizeof(float));
   for (size_t i = 0; i < n_frames; ++i) {
-    for (float harmonic = 1.; (harmonic*frequency < nyq); harmonic += 2.) {
+    for (float harmonic = 1.; harmonic*frequency < nyq; harmonic += 2.) {
       out_buffer[i] += sin(2*M_PI*harmonic*t) / (float)harmonic;
     }
+
     out_buffer[i] *= 4. / M_PI;
     t += frequency / (nyq*2.) /* sample rate */;
-    if (t >= 1.0) t = 0;
+    if (t >= 1.0) t -= 1.0;
   }
 
   square->theta = t;
