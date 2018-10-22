@@ -26,3 +26,18 @@ lxd.destroy_additive_square.restype  = c_void_p
 
 lxd.additive_square_generate_samples.argtypes = [c_void_p, c_size_t, c_float, POINTER(c_float)]
 lxd.additive_square_generate_samples.restype  = c_int
+
+lxd.pulse_gen_footprint.argtypes = []
+lxd.pulse_gen_footprint.restype  = c_size_t
+
+lxd.create_pulse_gen.argtypes = [c_void_p, c_float, POINTER(c_int)]
+lxd.create_pulse_gen.restype  = c_void_p
+
+lxd.destroy_pulse_gen.argtypes = [c_void_p]
+lxd.destroy_pulse_gen.restype  = c_void_p
+
+lxd.pulse_gen_strike.argtypes = [c_void_p]
+lxd.pulse_gen_strike.restype  = c_int
+
+lxd.pulse_gen_generate_samples.argtypes = [c_void_p, c_size_t, POINTER(c_float)]
+lxd.pulse_gen_generate_samples.restype  = c_int

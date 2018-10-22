@@ -60,7 +60,8 @@ jack_process_callback(jack_nframes_t nframes, void* arg)
     (jack_default_audio_sample_t const*)jack_port_get_buffer(ports[RESULT_IN], nframes);
 
   /* FIXME store the error somewhere */
-  int ret = app_poll(app, (size_t)nframes, square, pulse, result);
+  jack_time_t now_mics = jack_get_time();
+  int ret = app_poll(app, now_mics*1000, (size_t)nframes, square, pulse, result);
   return (ret == APP_SUCCESS) ? 0 : 1;
 }
 
@@ -131,7 +132,7 @@ main(int argc, char ** argv)
   }
 
   /* Setup the audio processing app */
-  app = create_app(sample_rate, &ret);
+  app = create_app(sample_rate, 1e9/2, &ret);
   if (!app) {
     fprintf(stderr, "failed to create app with '%s'\n", app_errstr(ret));
     goto exit;
@@ -182,7 +183,7 @@ main(int argc, char ** argv)
   /* Wait for something to shut us down */
 
   while (atomic_load(&running)) {
-    printf("\rnow=%ld", time(NULL));
+    // printf("\rnow=%ld", time(NULL));
     fflush(stdout);
     usleep(1000 /*millis */ * 1000 /* seconds */ * 1);
   }

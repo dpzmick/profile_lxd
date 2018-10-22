@@ -31,7 +31,12 @@ create_additive_square(void*  mem,
 void*
 destroy_additive_square(additive_square_t* square);
 
-/* Put n frames into the provided buffer of floats with the given frequency */
+/* Put n frames into the provided buffer of floats with the given frequency,
+   updates internal state. The next call to this function will continue
+   generating the square wave at the given frequency.
+
+   If the frequency changes between calls, the new frequency wave will be
+   started at the phase we've left off on. */
 
 int
 additive_square_generate_samples(additive_square_t* square,
