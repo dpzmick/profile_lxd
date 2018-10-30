@@ -109,17 +109,17 @@ def test_asquare():
         inner(s,f)
 
 if __name__ == "__main__":
-    g = PulseGen(0.05)
-    g.strike();
-    res1 = g.generate_samples(50)
+    # g = PulseGen(0.05)
+    # g.strike();
+    # res1 = g.generate_samples(50)
 
-    g.strike();
-    res2 = g.generate_samples(100)
-    res1 = np.append(res1, res2)
+    # g.strike();
+    # res2 = g.generate_samples(100)
+    # res1 = np.append(res1, res2)
 
-    plt.plot(res1)
-    plt.show()
-    sys.exit(0)
+    # plt.plot(res1)
+    # plt.show()
+    # sys.exit(0)
 
     import test_lxd.main as me
     for name in dir(me):

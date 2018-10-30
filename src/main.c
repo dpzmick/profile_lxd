@@ -114,8 +114,9 @@ main(int argc, char ** argv)
   int            rt          = jack_is_realtime(client);
 
   printf("Successfully initialized jack client named '%s'.\nProperties:\n", client_name);
-  printf("  sample_rate=%u\n  buffer_size=%u\n  realtime=%s\n",
-         sample_rate, buffer_size, rt ? "true" : "false");
+  printf("%-30s %u\n", "sample rate", sample_rate);
+  printf("%-30s %u\n", "buffer size", buffer_size);
+  printf("%-30s %s\n", "realtime",    rt ? "true" : "false");
 
   /* Create the ports that we need */
 
@@ -161,6 +162,8 @@ main(int argc, char ** argv)
     fprintf(stderr, "failed to setup signal handlers with: '%s' (%d)\n", strerror(errno), errno);
     goto exit;
   }
+
+  printf("app fully initialized... activating\n");
 
   /* fire up the processing thread */
   ret = jack_activate(client);

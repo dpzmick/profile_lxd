@@ -10,7 +10,7 @@ string(STRIP ${CACHELINE} CACHELINE)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror -fstrict-aliasing -pedantic -march=native -mavx2")
-add_definitions(-DCACHELINE=${CACHELINE})
+add_definitions(-DCACHELINE=${CACHELINE}ul)
 
 # cmake garbage
 set(CMAKE_EXPORT_COMPILE_COMMANDS "ON")
@@ -22,7 +22,8 @@ add_executable(profile_lxd
     src/additive_square.c
     src/pulse_gen.c)
 
-set_property(TARGET profile_lxd PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+#set_property(TARGET profile_lxd PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+target_link_libraries(profile_lxd fftw3f)
 target_link_libraries(profile_lxd m)
 target_link_libraries(profile_lxd jack)
 
