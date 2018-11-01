@@ -15,6 +15,12 @@ void
 destroy_app(app_t* app);
 
 int
+app_start(app_t* app);
+
+int
+app_stop(app_t* app);
+
+int
 app_poll(app_t*                app,
          uint64_t              now_ns,           /* monotonically increasing nanosecond time */
          size_t                nframes,

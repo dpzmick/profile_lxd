@@ -22,12 +22,27 @@ enum {
   PORT_COUNT,
 };
 
+enum {
+  WHY_UNSET,
+  WHY_SIGNAL,
+  WHY_ERROR,
+};
+
+static char const * whys[] = {"unknown", "signal", "error"};
+
 #if ATOMIC_BOOL_LOCK_FREE!=2
 #error "atomic_bool must be lock free!"
 #endif
 
+#if ATOMIC_INT_LOCK_FREE!=2
+#error "atomic_int must be lock free!"
+#endif
+
 /* All state for this app is global */
-static atomic_bool  running;          /* no way to static init explicitly */
+static atomic_bool  running;
+static atomic_int   why;               /* technically wrong */
+static int          error_if_why_error;
+
 static app_t*       app               = NULL;
 static jack_port_t* ports[PORT_COUNT] = { NULL, NULL, NULL };
 
@@ -62,7 +77,15 @@ jack_process_callback(jack_nframes_t nframes, void* arg)
   /* FIXME store the error somewhere */
   jack_time_t now_mics = jack_get_time();
   int ret = app_poll(app, now_mics*1000, (size_t)nframes, square, pulse, result);
-  return (ret == APP_SUCCESS) ? 0 : 1;
+  if (ret != APP_SUCCESS) {
+    atomic_store(&why, WHY_ERROR);
+    atomic_store(&running, false);
+    error_if_why_error = ret;
+    return 1;
+  }
+  else {
+    return 0;
+  }
 }
 
 /* If a client was too slow, this is triggered.
@@ -85,6 +108,7 @@ handle_signal(int signo)
 {
   (void)signo;
   assert(signo == SIGINT); /* sketchy as hell */
+  atomic_store(&why, WHY_SIGNAL);
   atomic_store(&running, false);
 }
 
@@ -163,7 +187,14 @@ main(int argc, char ** argv)
     goto exit;
   }
 
-  printf("app fully initialized... activating\n");
+  printf("app fully initialized... stating...\n");
+  ret = app_start(app);
+  if (APP_SUCCESS != ret) {
+    fprintf(stderr, "Failed to start app with '%s'\n", app_errstr(ret));
+    goto exit;
+  }
+
+  printf("app started... activating jack...\n");
 
   /* fire up the processing thread */
   ret = jack_activate(client);
@@ -193,7 +224,10 @@ main(int argc, char ** argv)
   printf("\n");
 
 exit:
-  printf("Shutting down '%s'\n", argv[0]);
+  printf("Shutting down '%s' due to %s\n", argv[0], whys[atomic_load(&why)]);
+  if (atomic_load(&why) == WHY_ERROR) {
+    printf("error was '%s'\n", app_errstr(error_if_why_error));
+  }
 
   /* Implicitly disconnects all ports associated with the client */
   ret = jack_deactivate(client);
@@ -203,6 +237,11 @@ exit:
     ret = jack_port_unregister(client, ports[i]);
     if (ret != 0) fprintf(stderr, "Failed to unregister port, continuing. ret=%d\n", ret);
     ports[i] = NULL;
+  }
+
+  ret = app_stop(app);
+  if (APP_SUCCESS != ret) {
+    fprintf(stderr, "failed to stop app with '%s'\n", app_errstr(ret));
   }
 
   ret = jack_client_close(client);

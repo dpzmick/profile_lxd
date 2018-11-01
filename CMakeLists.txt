@@ -14,18 +14,24 @@ add_definitions(-DCACHELINE=${CACHELINE}ul)
 
 # cmake garbage
 set(CMAKE_EXPORT_COMPILE_COMMANDS "ON")
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+
+# find thread library
+find_package(Threads REQUIRED)
 
 # add the sources
 add_executable(profile_lxd
     src/main.c
     src/app.c
     src/additive_square.c
-    src/pulse_gen.c)
+    src/pulse_gen.c
+    src/disk_thread.c)
 
 #set_property(TARGET profile_lxd PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 target_link_libraries(profile_lxd fftw3f)
 target_link_libraries(profile_lxd m)
 target_link_libraries(profile_lxd jack)
+target_link_libraries(profile_lxd Threads::Threads)
 
 # create an so for testing in python
 add_library(lxd SHARED
