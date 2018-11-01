@@ -50,7 +50,9 @@ create_app(uint64_t sample_rate_hz,
            uint64_t strike_period_ns,
            int*     opt_err)
 {
-  /* FIXME fft size should be computed from the sample_rate and frequency of the square wave */
+  /* FIXME fft size should be computed from the sample_rate and frequency of the
+     square wave, but this seems to be doing a pretty good job */
+
   size_t fft_in_size  = 1024;
   size_t fft_out_size = (fft_in_size/2)+1;
 
@@ -95,7 +97,7 @@ create_app(uint64_t sample_rate_hz,
 
   /* Grab this first since it does another allocation */
 
-  rb = jack_ringbuffer_create(4096*4);
+  rb = jack_ringbuffer_create(RINGBUFFER_SIZE);
   if (!rb) {
     if (opt_err) *opt_err = APP_ERR_ALLOC;
     goto exit;
@@ -109,15 +111,15 @@ create_app(uint64_t sample_rate_hz,
   if (!sq) goto exit; /* opt_err already set */
   ptr += additive_square_footprint();
 
-  ptr = (char*)ALIGN((size_t)ptr, disk_thread_align());
-  dthread = create_disk_thread(ptr, rb, opt_err);
-  if (!sq) goto exit; /* opt_err already set */
-  ptr += disk_thread_footprint();
-
   ptr = (char*)ALIGN((size_t)ptr, pulse_gen_align());
   pgen = create_pulse_gen(ptr, 0.00005, opt_err);
   if (!pgen) goto exit; /* opt_err already set */
   ptr += pulse_gen_footprint();
+
+  ptr = (char*)ALIGN((size_t)ptr, disk_thread_align());
+  dthread = create_disk_thread(ptr, rb, opt_err);
+  if (!sq) goto exit; /* opt_err already set */
+  ptr += disk_thread_footprint();
 
   ptr = (char*)ALIGN((size_t)ptr, CACHELINE);
   fft_in = (float*)ptr;
@@ -169,6 +171,8 @@ exit:
   if (sq)      destroy_additive_square(sq);
   if (rb)      jack_ringbuffer_free(rb);
   if (mem)     free(mem);
+
+  fftwf_cleanup();
   return NULL;
 }
 
@@ -185,6 +189,7 @@ destroy_app(app_t* app)
   if (app->rb)      jack_ringbuffer_free(app->rb);
 
   free(app);
+  fftwf_cleanup();
 }
 
 int
@@ -220,10 +225,13 @@ app_poll(app_t*                app,
   if (!app)          return APP_ERR_INVAL;
   if (!app->running) return APP_ERR_INVAL;
 
+  int err = APP_SUCCESS;
+
   /* Each sample represents (1/sample_rate) seconds of time */
 
   /* Square wave just ticks away, gen stores the last phase so we won't have any discontinuity */
-  additive_square_generate_samples(app->sq, nframes, 440.0, square_wave_out);
+  err = additive_square_generate_samples(app->sq, nframes, 440.0, square_wave_out);
+  if (err != APP_SUCCESS) return err;
 
   /* Figure out if we need to generate a pulse at some point in this interval. */
 
@@ -237,17 +245,20 @@ app_poll(app_t*                app,
     uint64_t frames_before_pulse = 0;
     if (next_pulse > now_ns) {
       frames_before_pulse = (next_pulse-now_ns)/nsec_per_frame;
-      pulse_gen_generate_samples(app->pgen, frames_before_pulse, exciter_out);
+      err = pulse_gen_generate_samples(app->pgen, frames_before_pulse, exciter_out);
+      if (err != APP_SUCCESS) return err;
     }
     pulse_gen_strike(app->pgen);
     app->last_strike_ns = now_ns + (frames_before_pulse+1)*nsec_per_frame;
   }
 
-  pulse_gen_generate_samples(app->pgen, pulse_frames, exciter_out);
+  err = pulse_gen_generate_samples(app->pgen, pulse_frames, exciter_out);
+  if (err != APP_SUCCESS) return err;
 
   bool write_fft = false;
   for (size_t i = 0; i < nframes; ++i) {
     app->fft_in[app->fft_in_location] = lxd_signal_in[i];
+    app->fft_in_location += 1;
     if (app->fft_in_location >= app->fft_in_space) {
       fftwf_execute(app->plan);
       app->fft_in_location = 0;
@@ -261,7 +272,7 @@ app_poll(app_t*                app,
   /* Write into this thing, then copy into ringbuffer since the copy might cross
      from the end to the beginning of the buffer */
   static char mem[SAMPLE_SET_MAX];
-  assert(message_size <= sizeof(mem));
+  assert(message_size <= sizeof(mem)); // FIXME move to the app struct
 
   sample_set_t* sset = create_sample_set(mem, nframes, fft_bin_count, NULL);
   if (!sset) {

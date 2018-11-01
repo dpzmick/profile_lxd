@@ -1,6 +1,7 @@
 #include "additive_square.h"
 #include "err.h"
 
+#include <assert.h>
 #include <string.h>
 #include <tgmath.h>
 
@@ -57,9 +58,11 @@ additive_square_generate_samples(additive_square_t* square,
       out_buffer[i] += sin(2*M_PI*harmonic*t) / (float)harmonic;
     }
 
-    out_buffer[i] *= 4. / M_PI;
     t += frequency / (nyq*2.) /* sample rate */;
     if (t >= 1.0) t -= 1.0;
+
+    assert(out_buffer[i] <= 1.0);
+    assert(out_buffer[i] >= -1.0);
   }
 
   square->theta = t;

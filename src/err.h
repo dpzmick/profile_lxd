@@ -5,6 +5,7 @@
   _(APP_ERR_INVAL,       "invalid arguments")\
   _(APP_ERR_UNIMPL,      "not implemented")\
   _(APP_ERR_THREAD_JOIN, "couldn't join a thread")\
+  _(APP_ERR_OPEN,        "couldn't open file")\
   _(APP_DROP,            "dropped a message")\
 
 enum {

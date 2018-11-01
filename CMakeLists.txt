@@ -11,6 +11,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror -fstrict-aliasing -pedantic -march=native -mavx2")
 add_definitions(-DCACHELINE=${CACHELINE}ul)
+add_definitions(-D_GNU_SOURCE)
 
 # cmake garbage
 set(CMAKE_EXPORT_COMPILE_COMMANDS "ON")

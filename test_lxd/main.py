@@ -6,7 +6,6 @@ from scipy import signal
 from scipy import fftpack
 import ctypes
 import numpy as np
-import pytest
 import itertools
 import sys
 
@@ -87,10 +86,17 @@ def test_asquare():
         afft     = afft[:N//2]
         peaks, _ = signal.find_peaks(afft)
 
+        for sample in samples:
+            assert sample >= -1.0
+            assert sample <= 1.0
+
         if plot:
             plt.plot(afft)
             plt.plot(peaks, afft[peaks], 'x')
             plt.xscale('log')
+            plt.show()
+
+            plt.plot(samples)
             plt.show()
 
         for peak in peaks:
@@ -120,6 +126,11 @@ if __name__ == "__main__":
     # plt.plot(res1)
     # plt.show()
     # sys.exit(0)
+
+    # a = AdditiveSquare(441000)
+    # sq = a.generate_samples(4096, 440.0)
+    # plt.plot(sq)
+    # plt.show()
 
     import test_lxd.main as me
     for name in dir(me):

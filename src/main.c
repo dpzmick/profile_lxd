@@ -26,9 +26,10 @@ enum {
   WHY_UNSET,
   WHY_SIGNAL,
   WHY_ERROR,
+  WHY_XRUN,
 };
 
-static char const * whys[] = {"unknown", "signal", "error"};
+static char const * whys[] = {"unknown", "signal", "error", "xrun"};
 
 #if ATOMIC_BOOL_LOCK_FREE!=2
 #error "atomic_bool must be lock free!"
@@ -74,7 +75,6 @@ jack_process_callback(jack_nframes_t nframes, void* arg)
   jack_default_audio_sample_t const* result =
     (jack_default_audio_sample_t const*)jack_port_get_buffer(ports[RESULT_IN], nframes);
 
-  /* FIXME store the error somewhere */
   jack_time_t now_mics = jack_get_time();
   int ret = app_poll(app, now_mics*1000, (size_t)nframes, square, pulse, result);
   if (ret != APP_SUCCESS) {
@@ -97,7 +97,9 @@ jack_xrun_callback(void* arg)
   /* not required to be realtime safe */
   (void)arg;
 
-  printf("xrun, weird....\n");
+  atomic_store(&why, WHY_XRUN);
+  atomic_store(&running, false);
+
   return 0;
 }
 

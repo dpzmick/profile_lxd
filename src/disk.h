@@ -4,12 +4,11 @@
 
 #include <stddef.h>
 
-#define SAMPLE_SET_MAX (2048ul)
+#define SAMPLE_SET_MAX (4096ul)
 
-/* Data file format */
+/* Data file format. Output file is a bunch of these in a row */
 
-typedef struct output_file output_file_t;
-typedef struct sample_set  sample_set_t;
+typedef struct sample_set sample_set_t;
 
 struct __attribute__((packed)) sample_set {
   size_t n_samples;
@@ -20,11 +19,6 @@ struct __attribute__((packed)) sample_set {
   /* pulse_out  samples */
   /* lxd_in     samples */
   /* fft_bin    data */
-};
-
-struct __attribute__((packed)) output_file {
-  size_t       samples_count;
-  /* can't write a flexible member here, but, whatever.. Trailing samples... */
 };
 
 static inline size_t
