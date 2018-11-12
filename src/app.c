@@ -5,7 +5,7 @@
 #include "disk_thread.h"
 #include "err.h"
 #include "inc_fftw.h"
-#include "pulse_gen.h"
+#include "envelope.h"
 
 #include <assert.h>
 #include <jack/ringbuffer.h>
@@ -26,7 +26,7 @@ struct app {
 
   /* Store a bunch of pointers into the trailing data, done for convenience */
   additive_square_t* sq;
-  pulse_gen_t*       pgen;
+  envelope_t*        cv_gen;
   disk_thread_t*     dthread;
   float*             fft_in;
   fftwf_complex*     fft_out;
@@ -60,8 +60,8 @@ create_app(uint64_t sample_rate_hz,
   footprint = ALIGN(footprint, additive_square_align());
   footprint += additive_square_footprint();
 
-  footprint = ALIGN(footprint, pulse_gen_align());
-  footprint += pulse_gen_footprint();
+  footprint = ALIGN(footprint, envelope_footprint());
+  footprint += envelope_footprint();
 
   footprint = ALIGN(footprint, disk_thread_align());
   footprint += disk_thread_footprint();
@@ -84,7 +84,7 @@ create_app(uint64_t sample_rate_hz,
 
   /* trailing memory */
   additive_square_t* sq      = NULL;
-  pulse_gen_t*       pgen    = NULL;
+  envelope_t*        cv_gen  = NULL;
   disk_thread_t*     dthread = NULL;
   float*             fft_in  = NULL;
   fftwf_complex*     fft_out = NULL;
@@ -111,10 +111,14 @@ create_app(uint64_t sample_rate_hz,
   if (!sq) goto exit; /* opt_err already set */
   ptr += additive_square_footprint();
 
-  ptr = (char*)ALIGN((size_t)ptr, pulse_gen_align());
-  pgen = create_pulse_gen(ptr, 0.00005, opt_err);
-  if (!pgen) goto exit; /* opt_err already set */
-  ptr += pulse_gen_footprint();
+  envelope_setting_t setting[1];
+  setting->type = ENVELOPE_EXPONENTIAL;
+  setting->u.exponential->lambda = 0.00005;
+
+  ptr = (char*)ALIGN((size_t)ptr, envelope_align());
+  cv_gen = create_envelope(ptr, setting, opt_err);
+  if (!cv_gen) goto exit; /* opt_err already set */
+  ptr += envelope_footprint();
 
   ptr = (char*)ALIGN((size_t)ptr, disk_thread_align());
   dthread = create_disk_thread(ptr, rb, opt_err);
@@ -140,7 +144,7 @@ create_app(uint64_t sample_rate_hz,
   printf("%-30s %zu\n", "Created app with size", footprint);
   printf("%-30s %p\n",  "Created app at",        (void*)mem);
   printf("%-30s %p\n",  "Created square gen at", (void*)sq);
-  printf("%-30s %p\n",  "Created pgen at",       (void*)pgen);
+  printf("%-30s %p\n",  "Created cv_gen at",     (void*)cv_gen);
   printf("%-30s %p\n",  "Created dthread at",    (void*)dthread);
   printf("%-30s %p\n",  "Created fft_in at",     (void*)fft_in);
   printf("%-30s %p\n",  "Created fft_out at",    (void*)fft_out);
@@ -158,7 +162,7 @@ create_app(uint64_t sample_rate_hz,
   ret->fft_out_space    = fft_out_size;
   ret->rb               = rb;
   ret->sq               = sq;
-  ret->pgen             = pgen;
+  ret->cv_gen           = cv_gen;
   ret->dthread          = dthread;
   ret->fft_in           = fft_in;
   ret->fft_out          = fft_out;
@@ -166,7 +170,7 @@ create_app(uint64_t sample_rate_hz,
 
 exit:
   if (plan)    fftwf_destroy_plan(plan);
-  if (pgen)    destroy_pulse_gen(pgen);
+  if (cv_gen)  destroy_envelope(cv_gen);
   if (dthread) destroy_disk_thread(dthread);
   if (sq)      destroy_additive_square(sq);
   if (rb)      jack_ringbuffer_free(rb);
@@ -183,7 +187,7 @@ destroy_app(app_t* app)
   assert(!app->running); /* not valid if the app is still running */
 
   if (app->plan)    fftwf_destroy_plan(app->plan);
-  if (app->pgen)    destroy_pulse_gen(app->pgen);
+  if (app->cv_gen)  destroy_envelope(app->cv_gen);
   if (app->dthread) destroy_disk_thread(app->dthread);
   if (app->sq)      destroy_additive_square(app->sq);
   if (app->rb)      jack_ringbuffer_free(app->rb);
@@ -245,14 +249,14 @@ app_poll(app_t*                app,
     uint64_t frames_before_pulse = 0;
     if (next_pulse > now_ns) {
       frames_before_pulse = (next_pulse-now_ns)/nsec_per_frame;
-      err = pulse_gen_generate_samples(app->pgen, frames_before_pulse, exciter_out);
+      err = envelope_generate_samples(app->cv_gen, frames_before_pulse, exciter_out);
       if (err != APP_SUCCESS) return err;
     }
-    pulse_gen_strike(app->pgen);
+    envelope_strike(app->cv_gen);
     app->last_strike_ns = now_ns + (frames_before_pulse+1)*nsec_per_frame;
   }
 
-  err = pulse_gen_generate_samples(app->pgen, pulse_frames, exciter_out);
+  err = envelope_generate_samples(app->cv_gen, pulse_frames, exciter_out);
   if (err != APP_SUCCESS) return err;
 
   bool write_fft = false;
