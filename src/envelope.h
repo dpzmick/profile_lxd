@@ -6,7 +6,7 @@ typedef struct envelope         envelope_t;
 typedef struct envelope_setting envelope_setting_t;
 
 enum {
-  ENVELOPE_CONSTANT,
+  ENVELOPE_CONSTANT = 0,
   ENVELOPE_EXPONENTIAL,
   ENVELOPE_LINEAR,
   ENVELOPE_LOGARITHMIC,

@@ -27,17 +27,29 @@ lxd.destroy_additive_square.restype  = c_void_p
 lxd.additive_square_generate_samples.argtypes = [c_void_p, c_size_t, c_float, POINTER(c_float)]
 lxd.additive_square_generate_samples.restype  = c_int
 
-lxd.pulse_gen_footprint.argtypes = []
-lxd.pulse_gen_footprint.restype  = c_size_t
+class envelope_setting(Structure):
+    # hack alert! all the structs in the union are currently the same, so this
+    # will *probably* work
+    _fields_ = [("type", c_int),
+                ("param", c_float)]
 
-lxd.create_pulse_gen.argtypes = [c_void_p, c_float, POINTER(c_int)]
-lxd.create_pulse_gen.restype  = c_void_p
+lxd.envelope_footprint.argtypes = []
+lxd.envelope_footprint.restype  = c_size_t
 
-lxd.destroy_pulse_gen.argtypes = [c_void_p]
-lxd.destroy_pulse_gen.restype  = c_void_p
+lxd.create_envelope.argtypes = [c_void_p, POINTER(envelope_setting), POINTER(c_int)]
+lxd.create_envelope.restype  = c_void_p
 
-lxd.pulse_gen_strike.argtypes = [c_void_p]
-lxd.pulse_gen_strike.restype  = c_int
+lxd.destroy_envelope.argtypes = [c_void_p]
+lxd.destroy_envelope.restype  = c_void_p
 
-lxd.pulse_gen_generate_samples.argtypes = [c_void_p, c_size_t, POINTER(c_float)]
-lxd.pulse_gen_generate_samples.restype  = c_int
+lxd.envelope_strike.argtypes = [c_void_p]
+lxd.envelope_strike.restype  = c_int
+
+lxd.envelope_zero.argtypes = [c_void_p]
+lxd.envelope_zero.restype  = c_int
+
+lxd.envelope_change_setting.argtypes = [c_void_p, POINTER(envelope_setting)]
+lxd.envelope_change_setting.restype = c_int
+
+lxd.envelope_generate_samples.argtypes = [c_void_p, c_size_t, POINTER(c_float)]
+lxd.envelope_generate_samples.restype  = c_int
