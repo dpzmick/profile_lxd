@@ -1,0 +1,17 @@
+# frequency sweeps with different values of the CV
+
+# held frequencies with different kinds of CV pulses generated
+# some pulses may be close together, some far apart
+
+# held value (max) of CV, on/off of the square wave
+
+# can generate sound continuously or with some sort of envelope applied
+# can generate freqency with envelope applied
+# can set CV to a constant value
+# can send envelope down CV
+
+# each scene consists of
+# 1) envelope for wave gen frequency
+# 2) envelope for wave gen amplitude
+# 3) envelope for CV out
+# 4) duration of the scene (possibly derived from other paramaters)
