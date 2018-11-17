@@ -15,28 +15,24 @@ enum {
 struct envelope_setting {
   int type;
 
+  // FIXME need better conversion from these unitless things to times
+
   union {
-    /* out = value; */
     struct {
       float value;
     } constant[1];
 
-    /* out = e^(-lambda * t) */
     struct {
       float lambda;
     } exponential[1];
 
-    /* out = 1.0 - m*t */
     struct {
       float m;
     } linear[1];
 
-    /* out = 1.0 * {log(m*t), where t > 0, 1.0 where 1 == 0) */
     struct {
       float m;
     } logarithmic[1];
-
-    /* mix of linear/log mode? */
   } u;
 };
 

@@ -116,6 +116,18 @@ def test_asquare():
         if s/2 < f: continue
         inner(s,f)
 
+def test_constant():
+    s = envelope_setting()
+    s.type  = 0
+    s.param = 0.5
+
+    e = Envelope(s)
+    s = e.generate_samples(100)
+    e.strike()
+    s = np.append(s, e.generate_samples(1000))
+    plt.plot(s)
+    plt.show()
+
 def test_exponential():
     s = envelope_setting()
     s.type  = 1
@@ -126,8 +138,31 @@ def test_exponential():
     plt.plot(e.generate_samples(1000))
     plt.show()
 
+def test_linear():
+    s = envelope_setting()
+    s.type  = 2
+    s.param = 0.005
+
+    e = Envelope(s)
+    e.strike()
+    plt.plot(e.generate_samples(1000))
+    plt.show()
+
+def test_log():
+    s = envelope_setting()
+    s.type  = 3
+    s.param = 1000.
+
+    e = Envelope(s)
+    e.strike()
+    plt.plot(e.generate_samples(1000))
+    plt.show()
+
 if __name__ == "__main__":
-    test_exponential()
+    # test_constant()
+    # test_exponential()
+    # test_linear()
+    test_log()
     # import test_lxd.main as me
     # for name in dir(me):
     #     if name.startswith("test_"):
