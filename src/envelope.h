@@ -1,14 +1,15 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdint.h>
 
 typedef struct envelope         envelope_t;
 typedef struct envelope_setting envelope_setting_t;
 
 enum {
   ENVELOPE_CONSTANT = 0,
-  ENVELOPE_EXPONENTIAL,
   ENVELOPE_LINEAR,
+  ENVELOPE_EXPONENTIAL,
   ENVELOPE_LOGARITHMIC,
 };
 
@@ -18,23 +19,47 @@ struct envelope_setting {
   // FIXME need better conversion from these unitless things to times
 
   union {
+    // ds/dt = 1
+    // never zero
     struct {
       float value;
     } constant[1];
 
-    struct {
-      float lambda;
-    } exponential[1];
-
+    // ds/dt = -ms
     struct {
       float m;
     } linear[1];
 
+    // ds/dt = -lambda * s
+    struct {
+      float lambda;
+    } exponential[1];
+
+    // ds/dt = -1/(m*s)
     struct {
       float m;
     } logarithmic[1];
   } u;
 };
+
+/* Populate an evelope setting which will take `decay_time_ns` nanoseconds to
+   decay to zero, after being struck.
+
+   An envelope type of ENVELOPE_CONSTANT will return ERR_INVALID.
+
+   FIXME explain rounding behavior, since we can't exactly represent all
+   timestamps
+
+   FIXME return these by value so its easy to put them into a playbook?
+
+   Returns an error code if something goes wrong, populates the provided setting
+   struct if something goes right. */
+
+int
+populate_envelope_setting(int                 type,
+                          uint64_t            decay_time,
+                          uint64_t            sample_rate_hz,
+                          envelope_setting_t* out_setting);
 
 size_t
 envelope_footprint(void);

@@ -8,6 +8,39 @@
 #include <stdbool.h>
 #include <string.h>
 
+int
+populate_envelope_setting(int                 type,
+                          uint64_t            decay_time,
+                          uint64_t            sample_rate_hz,
+                          envelope_setting_t* out_setting)
+{
+  uint64_t nsec_per_frame = (1e9/sample_rate_hz);
+  uint64_t t              = decay_time/nsec_per_frame;
+
+  out_setting->type = type;
+  switch (type) {
+    case ENVELOPE_LINEAR: {
+      // 0 = 1 - tm
+      out_setting->u.linear->m = 1. / ((float)t);
+      break;
+    }
+    case ENVELOPE_EXPONENTIAL: {
+      // 0 = 1 - e^(mt)
+      // e^(mt) = 1
+      // mt ln e = ln 1
+      // mt = 0
+      out_setting->u.exponential->lambda = 1. / ((float)t);
+      break;
+    }
+    case ENVELOPE_LOGARITHMIC: {
+      out_setting->u.logarithmic->m = 0; // FIXME
+      break;
+    }
+    default: return APP_ERR_INVAL;
+  }
+  return APP_SUCCESS;
+}
+
 struct envelope {
   float              state;
   envelope_setting_t setting[1];
@@ -92,12 +125,12 @@ envelope_generate_samples(envelope_t* e,
         e->state = e->setting->u.constant->value;
         break;
       }
-      case ENVELOPE_EXPONENTIAL: {
-        e->state += -(e->setting->u.exponential->lambda) * e->state;
-        break;
-      }
       case ENVELOPE_LINEAR: {
         e->state -= e->setting->u.linear->m;
+        break;
+      }
+      case ENVELOPE_EXPONENTIAL: {
+        e->state += -(e->setting->u.exponential->lambda) * e->state;
         break;
       }
       case ENVELOPE_LOGARITHMIC: {

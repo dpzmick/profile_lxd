@@ -128,7 +128,7 @@ def test_constant():
     plt.plot(s)
     plt.show()
 
-def test_exponential():
+def test_linear():
     s = envelope_setting()
     s.type  = 1
     s.param = 0.005
@@ -138,7 +138,7 @@ def test_exponential():
     plt.plot(e.generate_samples(1000))
     plt.show()
 
-def test_linear():
+def test_exponential():
     s = envelope_setting()
     s.type  = 2
     s.param = 0.005

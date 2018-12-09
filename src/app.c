@@ -51,7 +51,9 @@ create_app(uint64_t sample_rate_hz,
            int*     opt_err)
 {
   /* FIXME fft size should be computed from the sample_rate and frequency of the
-     square wave, but this seems to be doing a pretty good job */
+     square wave, but this seems to be doing a pretty good job.
+
+     Since freq will be changing, probably need to window the fft input */
 
   size_t fft_in_size  = 1024;
   size_t fft_out_size = (fft_in_size/2)+1;
@@ -133,8 +135,8 @@ create_app(uint64_t sample_rate_hz,
   fft_out = (fftwf_complex*)ptr;
   ptr += sizeof(fftwf_complex) * fft_out_size;
 
-  /* Build an fft_plan, this does some calculations to determine the fastest way.
-     Don't alias these. */
+  /* Build an fft_plan, this does some calculations to determine the fastest way. */
+
   plan = fftwf_plan_dft_r2c_1d(fft_in_size, fft_in, fft_out, FFTW_MEASURE);
   if (!plan) {
     if (opt_err) *opt_err = APP_ERR_ALLOC; /* FIXME? */
@@ -280,7 +282,7 @@ app_poll(app_t*                app,
 
   sample_set_t* sset = create_sample_set(mem, nframes, fft_bin_count, NULL);
   if (!sset) {
-    printf("too big\n");
+    printf("too big\n"); // FIXME
     return APP_DROP;
   }
 
