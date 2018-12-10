@@ -101,6 +101,8 @@ TEST_CASE("decays actually work", "[envelope]")
           REQUIRE(buffer[i] >= 0.0);
         }
 
+        // put these all in unique_ptr even though it doesn't really matter if
+        // this stuff gets freed
         delete buffer;
         destroy_envelope(envelope);
         free(mem);

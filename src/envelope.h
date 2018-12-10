@@ -39,7 +39,7 @@ struct envelope_setting {
   } u;
 };
 
-/* Populate an evelope setting which will take `decay_time_ns` nanoseconds to
+/* Populate an envelope setting which will take `decay_time_ns` nanoseconds to
    decay to zero, after being struck.
 
    An envelope type of ENVELOPE_CONSTANT will return ERR_INVALID.
