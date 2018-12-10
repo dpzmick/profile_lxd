@@ -3,10 +3,17 @@
 #include "common.h"
 #include "err.h"
 
+#include <assert.h>
 #include <float.h>
 #include <math.h>
 #include <stdbool.h>
 #include <string.h>
+
+/* This is audio-land, define a 'reasonable zero' that we will hard round to zero.
+   Number picked for no good reason other than trying to get the tests to do a
+   reasonable thing. Not sure if totally sane.. */
+
+#define REASONABLE_ZERO_VALUE 1e-8
 
 int
 populate_envelope_setting(int                 type,
@@ -14,26 +21,35 @@ populate_envelope_setting(int                 type,
                           uint64_t            sample_rate_hz,
                           envelope_setting_t* out_setting)
 {
-  uint64_t nsec_per_frame = (1e9/sample_rate_hz);
-  uint64_t t              = decay_time/nsec_per_frame;
+  double nsec_per_frame = (1e9/(double)sample_rate_hz);
+  double t              = MAX(1, (double)decay_time/nsec_per_frame);
 
   out_setting->type = type;
   switch (type) {
     case ENVELOPE_LINEAR: {
       // 0 = 1 - tm
-      out_setting->u.linear->m = 1. / ((float)t);
+      out_setting->u.linear->m = 1. / t;
       break;
     }
     case ENVELOPE_EXPONENTIAL: {
-      // 0 = 1 - e^(mt)
-      // e^(mt) = 1
-      // mt ln e = ln 1
-      // mt = 0
-      out_setting->u.exponential->lambda = 1. / ((float)t);
+      // we can't ever reach zero, but, we can reach reasonable zero
+      // REASONABLE_ZERO_VALUE = e^(mt)
+      // ln(RZV) = mt * ln(e)
+      // ln(RZV) = mt
+      // m = ln(RZV) / t
+      out_setting->u.exponential->lambda = log(REASONABLE_ZERO_VALUE) / t;
       break;
     }
     case ENVELOPE_LOGARITHMIC: {
-      out_setting->u.logarithmic->m = 0; // FIXME
+      // RZV = 1.0 - ln(t)/m
+      // ln(t)/m = 1.0 - RZV
+      // m = ln(t)/(1.0 - RZV)
+
+      // when the pulse is shorter than one sample, we don't want to return zero
+      // (will result in divide by zero later on). Instead return something that
+      // ensures we will always return zeros.
+      float tmp = log(t)/(1.0 - REASONABLE_ZERO_VALUE);
+      out_setting->u.logarithmic->m = MAX(REASONABLE_ZERO_VALUE, tmp);
       break;
     }
     default: return APP_ERR_INVAL;
@@ -42,7 +58,7 @@ populate_envelope_setting(int                 type,
 }
 
 struct envelope {
-  float              state;
+  uint32_t           n_samples;
   envelope_setting_t setting[1];
 };
 
@@ -68,7 +84,7 @@ create_envelope(void*                     mem,
   // FIXME check alignment of mem
   envelope_t* ret = (envelope_t*)mem;
   *(ret->setting) = *initial_setting;
-  ret->state = 0.0;
+  ret->n_samples = 0;
   return ret;
 }
 
@@ -81,15 +97,15 @@ destroy_envelope(envelope_t* e)
 int
 envelope_strike(envelope_t* e)
 {
-  e->state = 1.0;
-  if (e->setting->type == ENVELOPE_CONSTANT) e->state = e->setting->u.constant->value;
+  e->n_samples = 0;
   return APP_SUCCESS;
 }
 
 int
 envelope_zero(envelope_t* e)
 {
-  e->state = 0.0;
+  // at "infinity", all of our different envelopes are at zero
+  e->n_samples = UINT32_MAX;
   return APP_SUCCESS;
 }
 
@@ -101,50 +117,56 @@ envelope_change_setting(envelope_t*               e,
   return APP_SUCCESS;
 }
 
-// FIXME determine if early return is worth adding noise to the
-// code and inconsistent processing time.
 int
 envelope_generate_samples(envelope_t* e,
                           size_t      nframes,
                           float*      buffer)
 {
-  memset(buffer, 0, nframes*sizeof(*buffer));
+  size_t previous_samples = e->n_samples;
+  size_t final_samples    = previous_samples + nframes;
+  int    type             = e->setting->type;
 
-  /* If the current state is at zero, the buffer is already fully populated.
-     User can't call `strike` in the middle of processing, so bail out. */
-
-  if (e->state < FLT_EPSILON) {
-    e->state = 0.0;
-    return APP_SUCCESS;
-  }
+  /* Use a closed form of the decay equation given to try and prevent error
+     from accumulating */
 
   for (size_t i = 0; i < nframes; ++i) {
-    buffer[i] = e->state;
-    switch (e->setting->type) {
+    size_t const this_sample = previous_samples + i;
+
+    switch (type) {
       case ENVELOPE_CONSTANT: {
-        e->state = e->setting->u.constant->value;
+        buffer[i] = e->setting->u.constant->value;
         break;
       }
       case ENVELOPE_LINEAR: {
-        e->state -= e->setting->u.linear->m;
+        buffer[i] = 1.0 - e->setting->u.linear->m * this_sample;
         break;
       }
       case ENVELOPE_EXPONENTIAL: {
-        e->state += -(e->setting->u.exponential->lambda) * e->state;
+        float lambda = e->setting->u.exponential->lambda;
+        buffer[i] = exp(lambda * this_sample);
         break;
       }
       case ENVELOPE_LOGARITHMIC: {
-        e->state += -1./(e->setting->u.logarithmic->m * e->state);
+        float m = e->setting->u.logarithmic->m;
+        buffer[i] = 1.0 - log(this_sample)/(double)m;
         break;
       }
       default: BUG(true, "unhandled envelope type");
     }
 
-    /* Similarly, if we've reached zero, the remaining buffer is already fully populated. */
-    if (e->state < FLT_EPSILON) {
-      e->state = 0.0;
-      return APP_SUCCESS;
-    }
+    if (buffer[i] < REASONABLE_ZERO_VALUE) buffer[i] = 0.0;
+  }
+
+#ifndef NDEBUG
+  for (size_t i = 0; i < nframes; ++i) assert(!isnan(buffer[i]));
+#endif
+
+  if (final_samples < previous_samples) {
+    // overflow, well defined for unsigned
+    e->n_samples = UINT32_MAX;
+  }
+  else {
+    e->n_samples = final_samples;
   }
 
   return APP_SUCCESS;

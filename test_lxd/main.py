@@ -130,12 +130,13 @@ def test_constant():
 
 def test_linear():
     s = envelope_setting()
-    s.type  = 1
-    s.param = 0.005
+    lxd.populate_envelope_setting(1, 4000000000, 44100, ctypes.byref(s))
 
     e = Envelope(s)
     e.strike()
-    plt.plot(e.generate_samples(1000))
+    samples = e.generate_samples(176401)
+    plt.plot(samples[176398:])
+    plt.axhline(0.0, color='red')
     plt.show()
 
 def test_exponential():
@@ -161,8 +162,8 @@ def test_log():
 if __name__ == "__main__":
     # test_constant()
     # test_exponential()
-    # test_linear()
-    test_log()
+    test_linear()
+    # test_log()
     # import test_lxd.main as me
     # for name in dir(me):
     #     if name.startswith("test_"):

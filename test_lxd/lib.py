@@ -36,6 +36,9 @@ class envelope_setting(Structure):
 lxd.envelope_footprint.argtypes = []
 lxd.envelope_footprint.restype  = c_size_t
 
+lxd.populate_envelope_setting.argtypes = [c_int, c_size_t, c_size_t, POINTER(envelope_setting)]
+lxd.populate_envelope_setting.restype  = c_int
+
 lxd.create_envelope.argtypes = [c_void_p, POINTER(envelope_setting), POINTER(c_int)]
 lxd.create_envelope.restype  = c_void_p
 
